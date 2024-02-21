@@ -1,6 +1,6 @@
 # dr_proxy
 Простой прокси сервер для вордпресс
-Plugin Name: Dr.slon Proxy Server Helper
+Plugin Name: Proxy Server Helper
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
 Version: 1.4.2
 Author: Dr.Slon

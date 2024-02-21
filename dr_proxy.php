@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Dr.slon Proxy Server Helper
+Plugin Name: Proxy Server Helper
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
 Version: 1.4.2
 Author: Dr.Slon
@@ -18,7 +18,7 @@ function proxy_plugin_menu() {
         'manage_options',
         'proxy-server-settings',
         'proxy_settings_page',
-	'dashicons-admin-tools',
+    'dashicons-admin-tools',
         99
     );
 }
@@ -35,7 +35,7 @@ echo '<a href="https://t.me/DrSlon" target="_blank"><img src="' . esc_url($image
     echo '</div>';
 ?>
     <div class="wrap">
-    	<h1>Настройки прокси-сервера</h1>
+	<h1>Настройки прокси-сервера</h1>
         <form method="post" action="">
             <?php wp_nonce_field('proxy_settings', 'proxy_nonce'); ?>
 
