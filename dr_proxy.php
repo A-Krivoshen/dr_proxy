@@ -2,8 +2,9 @@
 /*
 Plugin Name: Dr.slon Proxy Server Plugin
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
-Version: 1.4.1
+Version: 1.4.2
 Author: Dr.Slon
+Author URI: https://krivoshein.site
 */
 
 add_action('admin_menu', 'proxy_plugin_menu');
