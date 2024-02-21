@@ -2,7 +2,7 @@
 /*
 Plugin Name: Dr.slon Proxy Server Plugin
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
-Version: 1.4
+Version: 1.4.1
 Author: Dr.Slon
 */
 
@@ -21,13 +21,14 @@ function proxy_plugin_menu() {
 }
 
 function proxy_settings_page() {
-    $ad_html = '<div class="wps-widget" data-w="https:////wpwidget.ru/greetings?orientation=3&pid=11291"></div>';
+    $ad_html = '<div class="wps-widget" data-w="https://wpwidget.ru/greetings?orientation=3&pid=11291"></div>';
     $image_url = 'https://krivoshein.site/wp-content/uploads/2024/02/logo_k_drslon.png';
     echo '<div>';
     echo '<h2>Dr.slon Proxy Server Plugin</h2>';
-    echo '<a href="https://t.me/DrSlon" target="_blank"><img src="' . esc_url($image_url) . '" alt="https://krivoshein.site" style="max-width: 100%;" /></a>';
     echo $ad_html; 
     echo '<script src="https://wpwidget.ru/js/wps-widget-entry.min.js"></script>';
+echo '<a href="https://t.me/DrSlon" target="_blank"><img src="' . esc_url($image_url) . '" alt="https://krivoshein.site" " /></a>';   
+    
     echo '</div>';
 ?>
     <div class="wrap">
@@ -66,7 +67,7 @@ function proxy_settings_page() {
             <p class="description">Введите прокси-серверы в формате: адрес:порт:протокол:имя пользователя:пароль (например, proxy.example.com:8080:http:user:pass).</p>
             <input type="submit" class="button button-primary" value="Загружать прокси-серверы" />
         </form>
-    </div>
+</div>
     <?php
 }
 
@@ -144,3 +145,7 @@ function proxy_http_request_args($args) {
 
     return $args;
 } 
+
+
+
+
