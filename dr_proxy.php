@@ -27,22 +27,22 @@ function proxy_settings_page() {
         <form method="post" action="">
             <?php wp_nonce_field('proxy_settings', 'proxy_nonce'); ?>
 
-            <label for="proxy_address">Адрес прокси-сервера:</label>
+            <label for="proxy_address">Адрес прокси:</label>
             <input type="text" name="proxy_address" id="proxy_address" value="<?php echo esc_attr(get_option('proxy_address', '')); ?>" />
 
-            <label for="proxy_port">Порт прокси-сервера:</label>
+            <label for="proxy_port">Порт прокси:</label>
             <input type="number" name="proxy_port" id="proxy_port" value="<?php echo esc_attr(get_option('proxy_port', '')); ?>" />
 
-            <label for="proxy_protocol">Протокол прокси-сервера:</label>
+            <label for="proxy_protocol">Протокол прокси:</label>
             <select name="proxy_protocol" id="proxy_protocol">
                 <option value="http" <?php selected(get_option('proxy_protocol', ''), 'http'); ?>>HTTP</option>
                 <option value="https" <?php selected(get_option('proxy_protocol', ''), 'https'); ?>>HTTPS</option>
             </select>
 
-            <label for="proxy_username">Имя пользователя прокси-сервера:</label>
+            <label for="proxy_username">Имя пользователя:</label>
             <input type="text" name="proxy_username" id="proxy_username" value="<?php echo esc_attr(get_option('proxy_username', '')); ?>" />
 
-            <label for="proxy_password">Пароль прокси-сервера:</label>
+            <label for="proxy_password">Пароль:</label>
             <input type="password" name="proxy_password" id="proxy_password" value="<?php echo esc_attr(get_option('proxy_password', '')); ?>" />
 
             <p class="description">Введите данные прокси-сервера.</p>
