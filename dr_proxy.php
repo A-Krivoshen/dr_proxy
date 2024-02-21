@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Dr.slon Proxy Server Plugin
+Plugin Name: Dr.slon Proxy Server Helper
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
 Version: 1.4.2
 Author: Dr.Slon
