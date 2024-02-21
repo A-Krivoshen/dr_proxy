@@ -5,6 +5,8 @@ Description: Настраивайте и используйте прокси-с�
 Version: 1.4.2
 Author: Dr.Slon
 Author URI: https://krivoshein.site
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.htm
 */
 
 add_action('admin_menu', 'proxy_plugin_menu');
