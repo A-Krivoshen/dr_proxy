@@ -2,7 +2,7 @@
 /*
 Plugin Name: Proxy Server Helper
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
-Version: 1.5
+Version: 1.5.2
 Author: Dr.Slon
 Author URI: https://krivoshein.site
 License: GPLv2 or later
@@ -12,21 +12,19 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.htm
 add_action('admin_init', 'register_proxy_settings');
 
 function register_proxy_settings() {
-    register_setting('proxy_settings_group', 'proxy_address');
-    register_setting('proxy_settings_group', 'proxy_port');
-    register_setting('proxy_settings_group', 'proxy_protocol');
-    register_setting('proxy_settings_group', 'proxy_username');
-    register_setting('proxy_settings_group', 'proxy_password', 'encrypt_proxy_password');
-    register_setting('proxy_settings_group', 'proxy_priority');
-    register_setting('proxy_settings_group', 'proxy_server_list', 'encrypt_proxy_server_list');
+    register_setting('proxy_settings_group', 'proxy_address', 'encrypt_proxy_data');
+    register_setting('proxy_settings_group', 'proxy_port', 'encrypt_proxy_data');
+    register_setting('proxy_settings_group', 'proxy_protocol', 'encrypt_proxy_data');
+    register_setting('proxy_settings_group', 'proxy_username', 'encrypt_proxy_data');
+    register_setting('proxy_settings_group', 'proxy_password', 'encrypt_proxy_data');
 }
 
-function encrypt_proxy_password($value) {
+function encrypt_proxy_data($value) {
     return openssl_encrypt($value, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
 }
 
-function encrypt_proxy_server_list($value) {
-    return openssl_encrypt($value, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+function decrypt_proxy_data($value) {
+    return openssl_decrypt($value, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
 }
 
 add_action('admin_menu', 'proxy_plugin_menu');
@@ -60,9 +58,6 @@ function proxy_settings_page() {
             width: 30%;
             margin-right: 2%;
         }
-        #proxy_server_list {
-            width: 100%;
-        }
     </style>
 
     <div class="wrap">
@@ -71,12 +66,12 @@ function proxy_settings_page() {
             <?php settings_fields('proxy_settings_group'); ?>
             <div class="proxy-column">
                 <label for="proxy_address">Адрес прокси:</label>
-                <input type="text" name="proxy_address" id="proxy_address" value="<?php echo esc_attr(get_option('proxy_address', '')); ?>" />
+                <input type="text" name="proxy_address" id="proxy_address" value="<?php echo esc_attr(decrypt_proxy_data(get_option('proxy_address', ''))); ?>" />
             </div>
 
             <div class="proxy-column">
                 <label for="proxy_port">Порт прокси:</label>
-                <input type="number" name="proxy_port" id="proxy_port" value="<?php echo esc_attr(get_option('proxy_port', '')); ?>" />
+                <input type="text" name="proxy_port" id="proxy_port" value="<?php echo esc_attr(decrypt_proxy_data(get_option('proxy_port', ''))); ?>" />
             </div>
 
             <div class="proxy-column">
@@ -89,62 +84,47 @@ function proxy_settings_page() {
 
             <div class="proxy-column">
                 <label for="proxy_username">Имя пользователя:</label>
-                <input type="text" name="proxy_username" id="proxy_username" value="<?php echo esc_attr(get_option('proxy_username', '')); ?>" />
+                <input type="text" name="proxy_username" id="proxy_username" value="<?php echo esc_attr(decrypt_proxy_data(get_option('proxy_username', ''))); ?>" />
             </div>
 
             <div class="proxy-column">
                 <label for="proxy_password">Пароль:</label>
-                <input type="password" name="proxy_password" id="proxy_password" value="<?php echo esc_attr(get_option('proxy_password', '')); ?>" />
-            </div>
-
-            <div class="proxy-column">
-                <label for="proxy_priority">Приоритет:</label>
-                <input type="number" name="proxy_priority" id="proxy_priority" value="<?php echo esc_attr(get_option('proxy_priority', '')); ?>" />
+                <input type="password" name="proxy_password" id="proxy_password" value="<?php echo esc_attr(decrypt_proxy_data(get_option('proxy_password', ''))); ?>" />
             </div>
 
             <input type="submit" class="button button-primary" value="Сохранить настройки" />
         </form>
-
-        <h2>Список прокси-серверов (в формате JSON)</h2>
-        <form method="post" action="options.php">
-            <?php settings_fields('proxy_settings_group'); ?>
-            <textarea name="proxy_server_list" id="proxy_server_list" rows="5"><?php echo esc_textarea(get_option('proxy_server_list', '')); ?></textarea>
-            <p class="description">Введите прокси-серверы в формате JSON. Каждый сервер должен быть в формате {"address": "адрес", "port": порт, "protocol": "протокол", "username": "имя пользователя", "password": "пароль", "priority": приоритет}.</p>
-            <input type="submit" class="button button-primary" value="Сохранить настройки" />
+        <form method="post" action="">
+            <?php
+            if (!empty($_POST['reset_proxy_settings'])) {
+                delete_option('proxy_address');
+                delete_option('proxy_port');
+                delete_option('proxy_protocol');
+                delete_option('proxy_username');
+                delete_option('proxy_password');
+            }
+            ?>
+            <input type="submit" name="reset_proxy_settings" class="button button-secondary" value="Сбросить настройки" />
         </form>
     </div>
     <?php
 }
 
 function proxy_http_request_args($args) {
-    $proxy_address = get_option('proxy_address', '');
-    $proxy_port = get_option('proxy_port', '');
+    $proxy_address = decrypt_proxy_data(get_option('proxy_address', ''));
+    $proxy_port = decrypt_proxy_data(get_option('proxy_port', ''));
     $proxy_protocol = get_option('proxy_protocol', '');
     $encrypted_username = get_option('proxy_username', '');
     $encrypted_password = get_option('proxy_password', '');
-    $proxy_server_list_json = get_option('proxy_server_list', ''); // Получаем JSON данные списка прокси-серверов
 
     if (!empty($proxy_address) && !empty($proxy_port) && !empty($proxy_protocol)) {
-        $proxy_url = sprintf('%s://%s:%d', $proxy_protocol, $proxy_address, $proxy_port);
+        $proxy_url = sprintf('%s://%s:%s', $proxy_protocol, $proxy_address, $proxy_port);
+        $args['proxy'] = $proxy_url;
 
-        // Если есть JSON данные списка прокси-серверов, используем их
-        if (!empty($proxy_server_list_json)) {
-            $proxy_servers = json_decode($proxy_server_list_json, true); // Декодируем JSON в массив PHP
-            if (!empty($proxy_servers) && is_array($proxy_servers)) {
-                usort($proxy_servers, function($a, $b) {
-                    return $b['priority'] - $a['priority']; // Сортируем по убыванию приоритета
-                });
-                foreach ($proxy_servers as $proxy) {
-                    $proxy_url = sprintf('%s://%s:%d', $proxy['protocol'], $proxy['address'], $proxy['port']);
-                    if (!empty($proxy['username']) && !empty($proxy['password'])) {
-                        $proxy_username = openssl_decrypt($proxy['username'], 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
-                        $proxy_password = openssl_decrypt($proxy['password'], 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
-                        $args['headers']['Proxy-Authorization'] = 'Basic ' . base64_encode("$proxy_username:$proxy_password");
-                    }
-                    $args['proxy'] = $proxy_url;
-                    break; // Прерываем цикл после первого прокси с наивысшим приоритетом
-                }
-            }
+        if (!empty($encrypted_username) && !empty($encrypted_password)) {
+            $proxy_username = openssl_decrypt($encrypted_username, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+            $proxy_password = openssl_decrypt($encrypted_password, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+            $args['headers']['Proxy-Authorization'] = 'Basic ' . base64_encode("$proxy_username:$proxy_password");
         }
     }
 
