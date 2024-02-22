@@ -9,8 +9,27 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.htm
 */
 
+add_action('admin_init', 'register_proxy_settings');
+
+function register_proxy_settings() {
+    register_setting('proxy_settings_group', 'proxy_address');
+    register_setting('proxy_settings_group', 'proxy_port');
+    register_setting('proxy_settings_group', 'proxy_protocol');
+    register_setting('proxy_settings_group', 'proxy_username');
+    register_setting('proxy_settings_group', 'proxy_password', 'encrypt_proxy_password');
+    register_setting('proxy_settings_group', 'proxy_priority');
+    register_setting('proxy_settings_group', 'proxy_server_list', 'encrypt_proxy_server_list');
+}
+
+function encrypt_proxy_password($value) {
+    return openssl_encrypt($value, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+}
+
+function encrypt_proxy_server_list($value) {
+    return openssl_encrypt($value, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+}
+
 add_action('admin_menu', 'proxy_plugin_menu');
-add_action('admin_init', 'save_proxy_settings');
 add_filter('http_request_args', 'proxy_http_request_args', 10, 1);
 
 function proxy_plugin_menu() {
@@ -45,11 +64,11 @@ function proxy_settings_page() {
             width: 100%;
         }
     </style>
+
     <div class="wrap">
         <h1>Настройки прокси-сервера</h1>
-        <form method="post" action="">
-            <?php wp_nonce_field('save_proxy_settings', 'save_proxy_nonce'); ?>
-
+        <form method="post" action="options.php">
+            <?php settings_fields('proxy_settings_group'); ?>
             <div class="proxy-column">
                 <label for="proxy_address">Адрес прокси:</label>
                 <input type="text" name="proxy_address" id="proxy_address" value="<?php echo esc_attr(get_option('proxy_address', '')); ?>" />
@@ -87,8 +106,8 @@ function proxy_settings_page() {
         </form>
 
         <h2>Список прокси-серверов (в формате JSON)</h2>
-        <form method="post" action="">
-            <?php wp_nonce_field('save_proxy_server_list', 'save_proxy_server_nonce'); ?>
+        <form method="post" action="options.php">
+            <?php settings_fields('proxy_settings_group'); ?>
             <textarea name="proxy_server_list" id="proxy_server_list" rows="5"><?php echo esc_textarea(get_option('proxy_server_list', '')); ?></textarea>
             <p class="description">Введите прокси-серверы в формате JSON. Каждый сервер должен быть в формате {"address": "адрес", "port": порт, "protocol": "протокол", "username": "имя пользователя", "password": "пароль", "priority": приоритет}.</p>
             <input type="submit" class="button button-primary" value="Сохранить настройки" />
@@ -97,46 +116,35 @@ function proxy_settings_page() {
     <?php
 }
 
-add_action('admin_init', 'save_proxy_settings');
-
-function save_proxy_settings() {
-    if (isset($_POST['save_proxy_nonce']) && wp_verify_nonce($_POST['save_proxy_nonce'], 'save_proxy_settings')) {
-        $proxy_address = sanitize_text_field($_POST['proxy_address']);
-        $proxy_port = absint($_POST['proxy_port']);
-        $proxy_protocol = sanitize_text_field($_POST['proxy_protocol']);
-        $proxy_username = sanitize_text_field($_POST['proxy_username']);
-        $proxy_password = sanitize_text_field($_POST['proxy_password']);
-        $proxy_priority = absint($_POST['proxy_priority']);
-
-        update_option('proxy_address', $proxy_address);
-        update_option('proxy_port', $proxy_port);
-        update_option('proxy_protocol', $proxy_protocol);
-        update_option('proxy_username', $proxy_username);
-        update_option('proxy_password', $proxy_password);
-        update_option('proxy_priority', $proxy_priority);
-    }
-
-    if (isset($_POST['save_proxy_server_nonce']) && wp_verify_nonce($_POST['save_proxy_server_nonce'], 'save_proxy_server_list')) {
-        $proxy_server_list = sanitize_textarea_field($_POST['proxy_server_list']);
-        update_option('proxy_server_list', $proxy_server_list);
-    }
-}
 function proxy_http_request_args($args) {
     $proxy_address = get_option('proxy_address', '');
     $proxy_port = get_option('proxy_port', '');
     $proxy_protocol = get_option('proxy_protocol', '');
     $encrypted_username = get_option('proxy_username', '');
     $encrypted_password = get_option('proxy_password', '');
+    $proxy_server_list_json = get_option('proxy_server_list', ''); // Получаем JSON данные списка прокси-серверов
 
     if (!empty($proxy_address) && !empty($proxy_port) && !empty($proxy_protocol)) {
         $proxy_url = sprintf('%s://%s:%d', $proxy_protocol, $proxy_address, $proxy_port);
-        $args['proxy'] = $proxy_url;
 
-        if (!empty($encrypted_username) && !empty($encrypted_password)) {
-            $proxy_username = openssl_decrypt($encrypted_username, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
-            $proxy_password = openssl_decrypt($encrypted_password, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
-
-            $args['headers']['Proxy-Authorization'] = 'Basic ' . base64_encode("$proxy_username:$proxy_password");
+        // Если есть JSON данные списка прокси-серверов, используем их
+        if (!empty($proxy_server_list_json)) {
+            $proxy_servers = json_decode($proxy_server_list_json, true); // Декодируем JSON в массив PHP
+            if (!empty($proxy_servers) && is_array($proxy_servers)) {
+                usort($proxy_servers, function($a, $b) {
+                    return $b['priority'] - $a['priority']; // Сортируем по убыванию приоритета
+                });
+                foreach ($proxy_servers as $proxy) {
+                    $proxy_url = sprintf('%s://%s:%d', $proxy['protocol'], $proxy['address'], $proxy['port']);
+                    if (!empty($proxy['username']) && !empty($proxy['password'])) {
+                        $proxy_username = openssl_decrypt($proxy['username'], 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+                        $proxy_password = openssl_decrypt($proxy['password'], 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+                        $args['headers']['Proxy-Authorization'] = 'Basic ' . base64_encode("$proxy_username:$proxy_password");
+                    }
+                    $args['proxy'] = $proxy_url;
+                    break; // Прерываем цикл после первого прокси с наивысшим приоритетом
+                }
+            }
         }
     }
 
