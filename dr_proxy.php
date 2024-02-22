@@ -10,6 +10,8 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.htm
 */
 
 add_action('admin_menu', 'proxy_plugin_menu');
+add_action('admin_init', 'save_proxy_settings');
+add_filter('http_request_args', 'proxy_http_request_args', 10, 1);
 
 function proxy_plugin_menu() {
     add_menu_page(
@@ -118,4 +120,25 @@ function save_proxy_settings() {
         $proxy_server_list = sanitize_textarea_field($_POST['proxy_server_list']);
         update_option('proxy_server_list', $proxy_server_list);
     }
+}
+function proxy_http_request_args($args) {
+    $proxy_address = get_option('proxy_address', '');
+    $proxy_port = get_option('proxy_port', '');
+    $proxy_protocol = get_option('proxy_protocol', '');
+    $encrypted_username = get_option('proxy_username', '');
+    $encrypted_password = get_option('proxy_password', '');
+
+    if (!empty($proxy_address) && !empty($proxy_port) && !empty($proxy_protocol)) {
+        $proxy_url = sprintf('%s://%s:%d', $proxy_protocol, $proxy_address, $proxy_port);
+        $args['proxy'] = $proxy_url;
+
+        if (!empty($encrypted_username) && !empty($encrypted_password)) {
+            $proxy_username = openssl_decrypt($encrypted_username, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+            $proxy_password = openssl_decrypt($encrypted_password, 'aes-256-cbc', AUTH_SALT, 0, AUTH_SALT);
+
+            $args['headers']['Proxy-Authorization'] = 'Basic ' . base64_encode("$proxy_username:$proxy_password");
+        }
+    }
+
+    return $args;
 }
