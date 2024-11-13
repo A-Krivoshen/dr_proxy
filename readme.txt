@@ -1,6 +1,6 @@
 === Proxy Server Helper ===
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
-Version: 1.5
+Version: 1.6
 Author: Aleksey Krivoshein aka Dr.Slon
 Author URI: https://krivoshein.site
 License: GPLv2 or later
