@@ -2,7 +2,7 @@
 /*
 Plugin Name: Proxy Server Helper
 Description: Настраивайте и используйте прокси-серверы с интерфейсом администратора.
-Version: 1.6.0
+Version: 1.6.1
 Author: Aleksey Krivoshein
 Author URI: https://krivoshein.site
 License: GPLv2 or later
@@ -19,26 +19,76 @@ if (!extension_loaded('openssl')) {
 // Регистрация настроек
 add_action('admin_init', 'register_proxy_settings');
 function register_proxy_settings() {
-    register_setting('proxy_settings_group', 'proxy_address');
-    register_setting('proxy_settings_group', 'proxy_port');
-    register_setting('proxy_settings_group', 'proxy_protocol');
-    register_setting('proxy_settings_group', 'proxy_username', 'encrypt_proxy_data');
-    register_setting('proxy_settings_group', 'proxy_password', 'encrypt_proxy_data');
+    register_setting('proxy_settings_group', 'proxy_address', 'sanitize_proxy_address');
+    register_setting('proxy_settings_group', 'proxy_port', 'sanitize_proxy_port');
+    register_setting('proxy_settings_group', 'proxy_protocol', 'sanitize_proxy_protocol');
+    register_setting('proxy_settings_group', 'proxy_username', 'sanitize_and_encrypt_proxy_data');
+    register_setting('proxy_settings_group', 'proxy_password', 'sanitize_and_encrypt_proxy_data');
+}
+
+function sanitize_proxy_address($value) {
+    return sanitize_text_field((string) $value);
+}
+
+function sanitize_proxy_port($value) {
+    $port = absint($value);
+    if ($port < 1 || $port > 65535) {
+        return '';
+    }
+
+    return (string) $port;
+}
+
+function sanitize_proxy_protocol($value) {
+    $allowed_protocols = array('http', 'https');
+    $protocol = strtolower(sanitize_text_field((string) $value));
+
+    return in_array($protocol, $allowed_protocols, true) ? $protocol : 'http';
+}
+
+function sanitize_and_encrypt_proxy_data($value) {
+    $value = sanitize_text_field((string) $value);
+    if ($value === '') {
+        return '';
+    }
+
+    return encrypt_proxy_data($value);
 }
 
 function encrypt_proxy_data($value) {
+    if ($value === '') {
+        return '';
+    }
+
     $key = AUTH_SALT;
-    $iv = openssl_random_pseudo_bytes(16);
+    $iv = random_bytes(16);
     $encrypted_value = openssl_encrypt($value, 'aes-256-cbc', $key, 0, $iv);
+
+    if ($encrypted_value === false) {
+        return '';
+    }
+
     return base64_encode($iv . $encrypted_value);
 }
 
 function decrypt_proxy_data($value) {
+    if ($value === '') {
+        return '';
+    }
+
     $key = AUTH_SALT;
-    $data = base64_decode($value);
+    $data = base64_decode($value, true);
+
+    if ($data === false || strlen($data) <= 16) {
+        // Поддержка ранее сохранённых или незашифрованных значений.
+        return sanitize_text_field((string) $value);
+    }
+
     $iv = substr($data, 0, 16);
     $encrypted_value = substr($data, 16);
-    return openssl_decrypt($encrypted_value, 'aes-256-cbc', $key, 0, $iv);
+    $decrypted_value = openssl_decrypt($encrypted_value, 'aes-256-cbc', $key, 0, $iv);
+
+    return $decrypted_value === false ? '' : $decrypted_value;
 }
 
 add_action('admin_menu', 'proxy_plugin_menu');
@@ -55,6 +105,10 @@ function proxy_plugin_menu() {
 }
 
 function proxy_settings_page() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
     ?>
     <div class="wrap">
         <h1>Настройки прокси-сервера</h1>
@@ -107,6 +161,10 @@ function proxy_http_request_args($args) {
         $args['proxy'] = $proxy_url;
 
         if (!empty($username) && !empty($password)) {
+            if (!isset($args['headers']) || !is_array($args['headers'])) {
+                $args['headers'] = array();
+            }
+
             $args['headers']['Proxy-Authorization'] = 'Basic ' . base64_encode("$username:$password");
         }
     }
